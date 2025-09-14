@@ -1,53 +1,61 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+import argostranslate.package
 import argostranslate.translate
+from fastapi import FastAPI
+from pydantic import BaseModel
 
-app = FastAPI(title="Speech Translator API")
+app = FastAPI()
 
-# Load installed translation packages
-argostranslate.translate.load_installed_languages()
+# List of target languages we want (English as source always)
+TARGET_LANGS = ['fr', 'hi', 'zh', 'ru', 'es']
 
-# Supported target languages (source is always English)
-SUPPORTED_LANGS = {
-    "fr": "French",
-    "hi": "Hindi",
-    "zh": "Chinese",
-    "ru": "Russian",
-    "es": "Spanish"
-}
+def install_language_packages():
+    print("Checking and installing required language packages...")
+    available_packages = argostranslate.package.get_available_packages()
+    
+    # Load already installed languages and pairs
+    installed_langs = argostranslate.translate.load_installed_languages()
+    installed_pairs = {(lang.from_code, lang.to_code) for lang in installed_langs}
 
-class TranslationRequest(BaseModel):
+    # Install missing packages (en -> target_lang)
+    for to_code in TARGET_LANGS:
+        if ('en', to_code) not in installed_pairs:
+            package_to_install = next(
+                (pkg for pkg in available_packages if pkg.from_code == 'en' and pkg.to_code == to_code),
+                None
+            )
+            if package_to_install:
+                print(f"Installing package: en → {to_code} ...")
+                package_to_install.install()
+            else:
+                print(f"Package not found for en → {to_code}")
+
+    # Reload installed languages after installation
+    argostranslate.translate.load_installed_languages()
+    print("Language packages installation complete.")
+
+# Install language packages at startup
+install_language_packages()
+
+class TranslateRequest(BaseModel):
     text: str
-    target_lang: str
+    to_lang: str  # target language code
+
+@app.post("/translate")
+def translate_text(request: TranslateRequest):
+    installed_languages = argostranslate.translate.load_installed_languages()
+    
+    from_lang = next((lang for lang in installed_languages if lang.code == "en"), None)
+    to_lang = next((lang for lang in installed_languages if lang.code == request.to_lang), None)
+    
+    if not from_lang:
+        return {"error": "Source language 'en' not installed."}
+    if not to_lang:
+        return {"error": f"Target language '{request.to_lang}' not installed or supported."}
+    
+    translation = from_lang.get_translation(to_lang)
+    translated_text = translation.translate(request.text)
+    return {"translated_text": translated_text}
 
 @app.get("/")
 def root():
-    return {"message": "Welcome to the Speech Translator API!"}
-
-@app.get("/languages")
-def get_supported_languages():
-    return {"supported_target_languages": SUPPORTED_LANGS}
-
-@app.post("/translate")
-def translate_text(request: TranslationRequest):
-    source_lang = "en"  # Always English
-    target_lang = request.target_lang.lower()
-
-    if target_lang not in SUPPORTED_LANGS:
-        raise HTTPException(status_code=400, detail="Unsupported target language code.")
-
-    # Get installed languages
-    installed_languages = argostranslate.translate.get_installed_languages()
-    from_lang = next((lang for lang in installed_languages if lang.code == source_lang), None)
-    to_lang = next((lang for lang in installed_languages if lang.code == target_lang), None)
-
-    if not from_lang or not to_lang:
-        raise HTTPException(status_code=400, detail="Language model not installed.")
-
-    translation = from_lang.get_translation(to_lang)
-    translated_text = translation.translate(request.text)
-
-    return {
-        "translated_text": translated_text,
-        "target_language": SUPPORTED_LANGS[target_lang]
-    }
+    return {"message": "Translator API is running. Source language fixed as English."}
