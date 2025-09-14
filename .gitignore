@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.env
+.env
+venv/
+*.egg-info/
+*.log
+
+# VSCode / IDEs
+.vscode/
+.idea/
+
+# Argos Translate model directory (downloaded language models)
+models/
+
+# OS junk
+.DS_Store
+Thumbs.db
