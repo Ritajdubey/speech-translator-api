@@ -5,18 +5,16 @@ from pydantic import BaseModel
 
 app = FastAPI()
 
-# List of target languages we want (English as source always)
+# List of target languages (English is source)
 TARGET_LANGS = ['fr', 'hi', 'zh', 'ru', 'es']
 
 def install_language_packages():
     print("Checking and installing required language packages...")
     available_packages = argostranslate.package.get_available_packages()
     
-    # Load already installed languages and pairs
-    installed_langs = argostranslate.translate.load_installed_languages()
-    installed_pairs = {(lang.from_code, lang.to_code) for lang in installed_langs}
+    installed_packages = argostranslate.translate.get_installed_packages()
+    installed_pairs = {(pkg.from_code, pkg.to_code) for pkg in installed_packages}
 
-    # Install missing packages (en -> target_lang)
     for to_code in TARGET_LANGS:
         if ('en', to_code) not in installed_pairs:
             package_to_install = next(
@@ -29,16 +27,14 @@ def install_language_packages():
             else:
                 print(f"Package not found for en → {to_code}")
 
-    # Reload installed languages after installation
-    argostranslate.translate.load_installed_languages()
+    # No explicit reload function required; installed packages will now be available
     print("Language packages installation complete.")
 
-# Install language packages at startup
 install_language_packages()
 
 class TranslateRequest(BaseModel):
     text: str
-    to_lang: str  # target language code
+    to_lang: str
 
 @app.post("/translate")
 def translate_text(request: TranslateRequest):
