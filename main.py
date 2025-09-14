@@ -12,7 +12,8 @@ def install_language_packages():
     print("Checking and installing required language packages...")
     available_packages = argostranslate.package.get_available_packages()
     
-    installed_packages = argostranslate.translate.get_installed_packages()
+    # Get installed packages instead of languages
+    installed_packages = argostranslate.package.get_installed_packages()
     installed_pairs = {(pkg.from_code, pkg.to_code) for pkg in installed_packages}
 
     for to_code in TARGET_LANGS:
@@ -27,14 +28,14 @@ def install_language_packages():
             else:
                 print(f"Package not found for en → {to_code}")
 
-    # No explicit reload function required; installed packages will now be available
     print("Language packages installation complete.")
 
+# Install language packages at startup
 install_language_packages()
 
 class TranslateRequest(BaseModel):
     text: str
-    to_lang: str
+    to_lang: str  # target language code
 
 @app.post("/translate")
 def translate_text(request: TranslateRequest):
