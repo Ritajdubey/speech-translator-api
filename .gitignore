@@ -18,3 +18,4 @@ models/
 .DS_Store
 Thumbs.db
 "api_key_openAI.txt" 
+"git_token.txt" 
